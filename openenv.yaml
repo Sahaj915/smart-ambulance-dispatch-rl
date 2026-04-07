@@ -1,0 +1,222 @@
+```yaml
+name: SmartAmbulanceDispatchRL
+version: "1.0.0"
+
+description: >
+  A reinforcement learning environment for real-world Emergency Medical
+  Services (EMS) dispatch optimization. The agent acts as an intelligent
+  dispatcher that assigns ambulances to emergency calls and routes patients
+  to the most suitable hospital while managing resource constraints,
+  traffic variability, patient severity, and ICU availability.
+
+authors:
+  - name: Sahaj
+    github: Sahaj915
+
+  - name: Satyam Kumar Mishra
+    github: Satyammishra13
+
+  - name: Shashank Shekhar Bajpayee
+    github: 
+
+category: real-world
+domain: healthcare
+subdomain: emergency-services
+
+tags:
+  - ambulance
+  - dispatch
+  - hospital-routing
+  - emergency-services
+  - resource-optimization
+  - reinforcement-learning
+  - healthcare
+  - smart-routing
+
+runtime:
+  python: "3.11"
+
+# -------------------------------------------------------------------
+# Environment Configuration
+# -------------------------------------------------------------------
+
+environment:
+  class: AmbulanceDispatchEnv
+  module: src.env
+
+  action_space:
+    type: Discrete
+    description: >
+      Each action encodes:
+      (ambulance_id × num_hospitals + hospital_id)
+
+      The selected ambulance is dispatched to the highest-priority
+      pending emergency call and the patient is routed to the chosen hospital.
+
+      The final action index represents WAIT.
+    easy:
+      n: 7
+    medium:
+      n: 16
+    hard:
+      n: 33
+
+  observation_space:
+    type: Box
+    dtype: float32
+    low: 0.0
+    high: 1.0
+    description: >
+      Normalized flat vector containing:
+
+      - Ambulance features:
+        [x, y, status, time_remaining, current_severity]
+
+      - Hospital features:
+        [x, y, bed_ratio, icu_ratio, specialty, centroid_distance]
+
+      - Active call slots:
+        [x, y, severity, wait_time, active, survival_probability]
+
+      - Global state:
+        [step_ratio, traffic, pending_count, critical_waiting]
+    easy:
+      shape: [57]
+    medium:
+      shape: [83]
+    hard:
+      shape: [116]
+
+  reward:
+    type: dense
+    description: >
+      Reward shaping is designed to encourage fast response,
+      patient survival, correct hospital routing, and efficient
+      ambulance utilization.
+
+    shaping:
+      positive:
+        - "+10.0 : patient survived after admission"
+        - "+5.0  : critical patient dispatched"
+        - "+5.0 × proximity bonus"
+        - "+4.0  : trauma center selected for critical patient"
+        - "+3.0  : hospital has available capacity"
+        - "+3.0 × survival probability"
+
+      negative:
+        - "-2.0  : busy ambulance selected"
+        - "-4.0  : higher severity patient skipped"
+        - "-5.0  : hospital has no capacity"
+        - "-6.0  : wait while critical patient pending"
+        - "-8.0  : failed admission"
+        - "-15.0 : critical patient lost"
+
+# -------------------------------------------------------------------
+# Tasks / Difficulty Levels
+# -------------------------------------------------------------------
+
+tasks:
+  easy:
+    description: >
+      Small city simulation with low call volume
+      and low traffic variability.
+    num_ambulances: 3
+    num_hospitals: 2
+    max_active_calls: 3
+    max_steps: 200
+    call_spawn_prob: 0.10
+    severity_weights: [0.6, 0.3, 0.1]
+    grader_target_score: 0.75
+
+  medium:
+    description: >
+      Medium city simulation with mixed severity
+      and moderate operational constraints.
+    num_ambulances: 5
+    num_hospitals: 3
+    max_active_calls: 6
+    max_steps: 300
+    call_spawn_prob: 0.20
+    severity_weights: [0.4, 0.4, 0.2]
+    grader_target_score: 0.65
+
+  hard:
+    description: >
+      Large city simulation with heavy emergency load,
+      higher critical cases, and ICU pressure.
+    num_ambulances: 8
+    num_hospitals: 4
+    max_active_calls: 10
+    max_steps: 500
+    call_spawn_prob: 0.30
+    severity_weights: [0.2, 0.4, 0.4]
+    grader_target_score: 0.55
+
+# -------------------------------------------------------------------
+# Grader Configuration
+# -------------------------------------------------------------------
+
+grader:
+  class: Grader
+  module: src.grader
+  output_range: [0.0, 1.0]
+  evaluation_episodes: 20
+
+  dimensions:
+    - name: Patient Survival Rate
+      weight: 0.40
+
+    - name: Response Efficiency
+      weight: 0.25
+
+    - name: Resource Utilization
+      weight: 0.15
+
+    - name: Critical Patient Handling
+      weight: 0.15
+
+    - name: Penalty Avoidance
+      weight: 0.05
+
+# -------------------------------------------------------------------
+# Baseline Models
+# -------------------------------------------------------------------
+
+baseline:
+  algorithm: PPO
+  library: stable-baselines3
+
+  training_script: src/train.py
+  inference_script: src/inference.py
+
+  model_paths:
+    easy: models/ppo_easy.zip
+    medium: models/ppo_medium.zip
+    hard: models/ppo_hard.zip
+
+  benchmark_scores:
+    random_baseline:
+      easy: 0.18
+      medium: 0.12
+      hard: 0.08
+
+    greedy_heuristic:
+      easy: 0.48
+      medium: 0.41
+      hard: 0.34
+
+    ppo_trained:
+      easy: 0.74
+      medium: 0.63
+      hard: 0.55
+
+# -------------------------------------------------------------------
+# Deployment
+# -------------------------------------------------------------------
+
+deployment:
+  dockerfile: Dockerfile
+  app_file: app.py
+  framework: gradio
+  port: 7860
+```
