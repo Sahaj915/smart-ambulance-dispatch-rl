@@ -225,11 +225,7 @@ Used from **Stable-Baselines3**
 
 ## 🚀 Installation
 
-```bash id="readme-install"
-git clone <ADD_YOUR_GITHUB_REPO_URL_HERE>
-cd ambulance_dispatch_rl
-pip install -r requirements.txt
-```
+```bash git clone https://github.com/Sahaj915/smart-ambulance-dispatch-rl.git cd smart-ambulance-dispatch-rl pip install -r requirements.txt
 
 ---
 
@@ -337,6 +333,7 @@ docker run -p 7860:7860 ambulance-dispatch-rl
 - Sahaj
 - Satyam Kumar Mishra
 - Shashank Shekhar Bajpayee
+
 ```
 
 
