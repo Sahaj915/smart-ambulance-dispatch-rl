@@ -1,3 +1,10 @@
+# Submission compatibility variables
+API_BASE_URL = os.getenv("API_BASE_URL", None)
+MODEL_NAME = os.getenv("MODEL_NAME", None)
+HF_TOKEN = os.getenv("HF_TOKEN", None)
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME", None)
+
+
 import os
 import argparse
 import time
