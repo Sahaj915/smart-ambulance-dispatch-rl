@@ -153,76 +153,87 @@ def run_episode_stream(task, policy_name, seed):
 
 # ── AI Debrief (Groq) ─────────────────────────────────────────────────────────
 
+from openai import OpenAI
+import os
+import json
+
 def generate_llama_debrief(stats_json):
     if not stats_json:
         return "⚠️ Please run a Performance Audit first!"
 
-    score = stats_json.get("score", 0)
-    grade = stats_json.get("grade", "N/A")
-    task = stats_json.get("task", "unknown")
-
-    breakdown = stats_json.get("breakdown", {})
-    survival = breakdown.get("survival_rate", 0)
-    efficiency = breakdown.get("response_efficiency", 0)
-    critical = breakdown.get("critical_success_rate", 0)
-    utilization = breakdown.get("resource_utilization", 0)
-    failure = breakdown.get("failure_rate", 0)
-    reward = breakdown.get("avg_episode_reward", 0)
-
-    # Dynamic interpretation
-    if score >= 0.9:
-        rating = "Outstanding"
-        tone = "The system delivered exceptional performance under pressure."
-    elif score >= 0.75:
-        rating = "Very Good"
-        tone = "The system handled most emergency situations efficiently."
-    elif score >= 0.6:
-        rating = "Average"
-        tone = "The system performed adequately but needs optimization."
-    else:
-        rating = "Needs Retraining"
-        tone = "The dispatch strategy requires significant improvement."
-
-    weak_points = []
-    if survival < 0.9:
-        weak_points.append("patient survival")
-    if efficiency < 0.9:
-        weak_points.append("response efficiency")
-    if critical < 0.9:
-        weak_points.append("critical emergency handling")
-    if utilization < 0.5:
-        weak_points.append("ambulance resource usage")
-    if failure > 0.1:
-        weak_points.append("failure rate")
-
-    weakness_text = (
-        ", ".join(weak_points)
-        if weak_points
-        else "no major operational weaknesses"
+    client = OpenAI(
+        api_key=os.getenv("GROQ_API_KEY"),
+        base_url="https://api.groq.com/openai/v1"
     )
 
-    report = f"""
-## 🚑 AI Performance Debrief
+    prompt = f"""
+You are the Chief Medical Dispatcher reviewing an RL ambulance dispatch system.
 
-For the **{task} district**, the RL dispatch system achieved a **score of {score:.3f}** with grade **{grade}**.
+Performance audit:
+{json.dumps(stats_json, indent=2)}
 
-### 📊 Performance Summary
-- Survival Rate: **{survival*100:.1f}%**
-- Response Efficiency: **{efficiency*100:.1f}%**
-- Critical Case Success: **{critical*100:.1f}%**
-- Resource Utilization: **{utilization*100:.1f}%**
-- Failure Rate: **{failure*100:.1f}%**
-- Avg Reward: **{reward:.2f}**
-
-### 🧠 AI Analysis
-{tone}
-
-The current system shows **{weakness_text}**.
-
-### 🏆 Final Rating
-**{rating}**
+Write a professional 3-paragraph performance report:
+1. Overall performance summary
+2. Strengths and weaknesses
+3. Final rating and recommendation
 """
-    return report
+
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": "You are an expert emergency operations analyst."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=400
+        )
+
+        return response.choices[0].message.content
+
+    except Exception as e:
+        return f"⚠️ Failed to generate debrief: {str(e)}"
+## 🚑 AI Performance Debrief
+from openai import OpenAI
+import os
+import json
+
+def generate_llama_debrief(stats_json):
+    if not stats_json or "error" in stats_json:
+        return "⚠️ Please run a Performance Audit first!"
+
+    try:
+        client = OpenAI(
+            api_key=os.getenv("GROQ_API_KEY"),
+            base_url="https://api.groq.com/openai/v1"
+        )
+
+        prompt = f"""
+You are the Chief Medical Dispatcher reviewing an RL ambulance dispatch system.
+
+Performance audit:
+{json.dumps(stats_json, indent=2)}
+
+Write a professional report with:
+1. Summary
+2. Strengths & weaknesses
+3. Final rating
+"""
+
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": "You are an expert emergency operations analyst."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.9,   # 🔥 important (makes output different each time)
+            max_tokens=500
+        )
+
+        return response.choices[0].message.content
+
+    except Exception as e:
+        return f"⚠️ API Error: {str(e)}"
 
 # ── Gradio UI ─────────────────────────────────────────────────────────────────
 
