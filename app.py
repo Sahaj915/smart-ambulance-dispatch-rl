@@ -165,19 +165,62 @@ def generate_llama_debrief(stats_json):
     survival = breakdown.get("survival_rate", 0)
     efficiency = breakdown.get("response_efficiency", 0)
     critical = breakdown.get("critical_success_rate", 0)
+    utilization = breakdown.get("resource_utilization", 0)
     failure = breakdown.get("failure_rate", 0)
+    reward = breakdown.get("avg_episode_reward", 0)
+
+    # Dynamic interpretation
+    if score >= 0.9:
+        rating = "Outstanding"
+        tone = "The system delivered exceptional performance under pressure."
+    elif score >= 0.75:
+        rating = "Very Good"
+        tone = "The system handled most emergency situations efficiently."
+    elif score >= 0.6:
+        rating = "Average"
+        tone = "The system performed adequately but needs optimization."
+    else:
+        rating = "Needs Retraining"
+        tone = "The dispatch strategy requires significant improvement."
+
+    weak_points = []
+    if survival < 0.9:
+        weak_points.append("patient survival")
+    if efficiency < 0.9:
+        weak_points.append("response efficiency")
+    if critical < 0.9:
+        weak_points.append("critical emergency handling")
+    if utilization < 0.5:
+        weak_points.append("ambulance resource usage")
+    if failure > 0.1:
+        weak_points.append("failure rate")
+
+    weakness_text = (
+        ", ".join(weak_points)
+        if weak_points
+        else "no major operational weaknesses"
+    )
 
     report = f"""
-## 🚑 Executive Performance Debrief
+## 🚑 AI Performance Debrief
 
-The AI dispatch system performed **strongly** on the **{task} district** scenario, achieving an overall score of **{score:.2f}** with a final grade of **{grade}**.
+For the **{task} district**, the RL dispatch system achieved a **score of {score:.3f}** with grade **{grade}**.
 
-The patient **survival rate was {survival*100:.1f}%**, response efficiency reached **{efficiency*100:.1f}%**, and critical case success was **{critical*100:.1f}%**.  
-The failure rate remained low at **{failure*100:.1f}%**, indicating reliable emergency handling.
+### 📊 Performance Summary
+- Survival Rate: **{survival*100:.1f}%**
+- Response Efficiency: **{efficiency*100:.1f}%**
+- Critical Case Success: **{critical*100:.1f}%**
+- Resource Utilization: **{utilization*100:.1f}%**
+- Failure Rate: **{failure*100:.1f}%**
+- Avg Reward: **{reward:.2f}**
 
-### 🏆 Final Assessment
-The RL policy demonstrates **excellent operational stability and high emergency response quality**.  
-Recommended rating: **Outstanding Performance**.
+### 🧠 AI Analysis
+{tone}
+
+The current system shows **{weakness_text}**.
+
+### 🏆 Final Rating
+**{rating}**
 """
     return report
 
