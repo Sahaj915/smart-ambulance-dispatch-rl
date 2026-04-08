@@ -337,7 +337,6 @@ def build_interface():
 
     return demo
 
-
 demo = build_interface()
 
 @api.post("/reset")
@@ -345,16 +344,16 @@ def reset_env(request: dict = Body(default={})):
     global env_instance
 
     task = request.get("task", "medium")
-    seed = request.get("seed", 0)
+    seed = request.get("seed", 42)
 
     env_instance = AmbulanceDispatchEnv(task=task)
     obs, info = env_instance.reset(seed=seed)
 
     return {
-        "observation": obs.tolist() if hasattr(obs, "tolist") else list(obs),
-        "info": info
+        "obs": obs.tolist() if hasattr(obs, "tolist") else list(obs),
+        "info": info,
+        "done": False
     }
-
 
 @api.post("/step")
 def step_env(request: dict = Body(default={})):
@@ -368,16 +367,11 @@ def step_env(request: dict = Body(default={})):
     obs, reward, terminated, truncated, info = env_instance.step(action)
 
     return {
-        "observation": obs.tolist() if hasattr(obs, "tolist") else list(obs),
+        "obs": obs.tolist() if hasattr(obs, "tolist") else list(obs),
         "reward": float(reward),
         "terminated": bool(terminated),
         "truncated": bool(truncated),
         "info": info
     }
 
-demo = build_interface()
-
-if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
-
-app = demo
+app = gr.mount_gradio_app(api, demo, path="/")
