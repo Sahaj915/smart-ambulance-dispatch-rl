@@ -376,4 +376,5 @@ def step_env(request: dict = Body(default={})):
     }
 
 
-app = gr.mount_gradio_app(api, demo, path="/")
+demo = build_interface()
+app = demo
