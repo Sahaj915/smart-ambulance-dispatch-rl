@@ -37,14 +37,11 @@ class StepRequest(BaseModel):
 
 
 @app.post("/reset")
-def reset_env(request: Optional[ResetRequest] = None):
+def reset_env():
     global env_instance
 
-    task = request.task if request else "medium"
-    seed = request.seed if request else 0
-
-    env_instance = AmbulanceDispatchEnv(task=task)
-    obs, info = env_instance.reset(seed=seed)
+    env_instance = AmbulanceDispatchEnv(task="medium")
+    obs, info = env_instance.reset(seed=0)
 
     return {
         "observation": obs.tolist() if hasattr(obs, "tolist") else list(obs),
