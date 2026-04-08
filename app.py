@@ -336,6 +336,44 @@ def build_interface():
         debrief_btn.click(fn=generate_llama_debrief, inputs=[eval_out], outputs=[debrief_output])
 
     return demo
+
+
+demo = build_interface()
+
+@api.post("/reset")
+def reset_env(request: dict = Body(default={})):
+    global env_instance
+
+    task = request.get("task", "medium")
+    seed = request.get("seed", 0)
+
+    env_instance = AmbulanceDispatchEnv(task=task)
+    obs, info = env_instance.reset(seed=seed)
+
+    return {
+        "observation": obs.tolist() if hasattr(obs, "tolist") else list(obs),
+        "info": info
+    }
+
+
+@api.post("/step")
+def step_env(request: dict = Body(default={})):
+    global env_instance
+
+    if env_instance is None:
+        return {"error": "Call /reset first"}
+
+    action = request.get("action", 0)
+
+    obs, reward, terminated, truncated, info = env_instance.step(action)
+
+    return {
+        "observation": obs.tolist() if hasattr(obs, "tolist") else list(obs),
+        "reward": float(reward),
+        "terminated": bool(terminated),
+        "truncated": bool(truncated),
+        "info": info
+    }
+
+
 app = gr.mount_gradio_app(api, demo, path="/")
-if __name__ == "__main__":
-    demo.launch()
