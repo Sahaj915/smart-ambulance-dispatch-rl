@@ -151,48 +151,6 @@ def run_episode_stream(task, policy_name, seed):
         yield render_real_world_map(env, step), metrics_html
         time.sleep(0.05)
 
-# ── AI Debrief (Groq) ─────────────────────────────────────────────────────────
-
-from openai import OpenAI
-import os
-import json
-
-def generate_llama_debrief(stats_json):
-    if not stats_json:
-        return "⚠️ Please run a Performance Audit first!"
-
-    client = OpenAI(
-        api_key=os.getenv("GROQ_API_KEY"),
-        base_url="https://api.groq.com/openai/v1"
-    )
-
-    prompt = f"""
-You are the Chief Medical Dispatcher reviewing an RL ambulance dispatch system.
-
-Performance audit:
-{json.dumps(stats_json, indent=2)}
-
-Write a professional 3-paragraph performance report:
-1. Overall performance summary
-2. Strengths and weaknesses
-3. Final rating and recommendation
-"""
-
-    try:
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[
-                {"role": "system", "content": "You are an expert emergency operations analyst."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=400
-        )
-
-        return response.choices[0].message.content
-
-    except Exception as e:
-        return f"⚠️ Failed to generate debrief: {str(e)}"
 ## 🚑 AI Performance Debrief
 def generate_llama_debrief(stats_json):
     import os
@@ -209,15 +167,62 @@ def generate_llama_debrief(stats_json):
             base_url="https://api.groq.com/openai/v1"
         )
 
-        # add randomness to force report variation
-        style_options = [
-            "professional executive summary",
-            "critical operational review",
-            "detailed emergency response analysis",
-            "medical command performance debrief"
+        audit_score = stats_json.get("score", 0)
+        survival = stats_json.get("breakdown", {}).get("survival_rate", 0)
+        response_eff = stats_json.get("breakdown", {}).get("response_efficiency", 0)
+        critical = stats_json.get("breakdown", {}).get("critical_success_rate", 0)
+
+        styles = [
+            "executive operational review",
+            "emergency response analysis",
+            "medical command performance report",
+            "dispatch optimization debrief"
         ]
 
-        chosen_style = random.choice(style_options)
+        style = random.choice(styles)
+
+        prompt = f"""
+Generate a UNIQUE {style}.
+
+IMPORTANT:
+- Use different wording every time
+- Mention exact numbers
+- Provide strengths and weaknesses
+- Give improvement suggestions
+
+Audit Data:
+{json.dumps(stats_json, indent=2)}
+
+Metrics:
+Score: {audit_score}
+Survival: {survival}
+Response Efficiency: {response_eff}
+Critical Success: {critical}
+
+Return markdown format.
+"""
+
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Every report must be unique and dynamic."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=1.3,
+            top_p=0.95,
+            max_tokens=700
+        )
+
+        return response.choices[0].message.content
+
+    except Exception as e:
+        return f"⚠️ API Error: {str(e)}"
 
         prompt = f"""
 You are a senior emergency response analyst.
