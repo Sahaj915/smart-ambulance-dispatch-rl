@@ -1,4 +1,6 @@
-gradio==4.44.1
+```text id="1zdx0u"
+gradio==4.36.0
+huggingface_hub==0.23.5
 fastapi
 uvicorn
 numpy
@@ -8,3 +10,4 @@ stable-baselines3
 torch
 gymnasium
 audioop-lts
+```
