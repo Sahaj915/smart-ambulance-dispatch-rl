@@ -1,3 +1,42 @@
+from fastapi import FastAPI, Body
+from src.env import AmbulanceDispatchEnv
+
+api = FastAPI()
+env_instance = None
+
+
+@api.post("/reset")
+def reset_env(request: dict = Body(default={})):
+    global env_instance
+
+    task = request.get("task", "medium")
+    seed = request.get("seed", 0)
+
+    env_instance = AmbulanceDispatchEnv(task=task)
+    obs, info = env_instance.reset(seed=seed)
+
+    return {
+        "observation": obs.tolist() if hasattr(obs, "tolist") else list(obs),
+        "info": info
+    }
+
+
+@api.post("/step")
+def step_env(request: dict = Body(...)):
+    global env_instance
+
+    action = request.get("action", 0)
+
+    obs, reward, terminated, truncated, info = env_instance.step(action)
+
+    return {
+        "observation": obs.tolist() if hasattr(obs, "tolist") else list(obs),
+        "reward": reward,
+        "terminated": terminated,
+        "truncated": truncated,
+        "info": info
+    }
+
 import os
 import time
 import json
@@ -6,6 +45,9 @@ import math
 import numpy as np
 import gradio as gr
 from groq import Groq
+from dotenv import load_dotenv
+load_dotenv()
+
 
 # importing project modules 
 try:
@@ -294,8 +336,6 @@ def build_interface():
         debrief_btn.click(fn=generate_llama_debrief, inputs=[eval_out], outputs=[debrief_output])
 
     return demo
-
+app = gr.mount_gradio_app(api, demo, path="/")
 if __name__ == "__main__":
-    demo = build_interface()
-    # Changed launch parameters to open directly in browser
-    demo.launch(inbrowser=True)
+    demo.launch()
