@@ -36,18 +36,22 @@ class StepRequest(BaseModel):
     action: int
 
 
+from fastapi import Body
+
 @app.post("/reset")
-def reset_env():
+def reset_env(request: dict = Body(default={})):
     global env_instance
 
-    env_instance = AmbulanceDispatchEnv(task="medium")
-    obs, info = env_instance.reset(seed=0)
+    task = request.get("task", "medium")
+    seed = request.get("seed", 0)
+
+    env_instance = AmbulanceDispatchEnv(task=task)
+    obs, info = env_instance.reset(seed=seed)
 
     return {
         "observation": obs.tolist() if hasattr(obs, "tolist") else list(obs),
         "info": info
     }
-
 
 @app.post("/step")
 def step_env(request: StepRequest):
