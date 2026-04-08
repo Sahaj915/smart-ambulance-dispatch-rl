@@ -1,0 +1,17 @@
+[project]
+name = "smart-ambulance-dispatch-rl"
+version = "0.1.0"
+description = "Ambulance dispatch RL system"
+authors = [{ name = "Sahaj" }]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "gradio",
+    "numpy",
+    "python-dotenv",
+    "requests"
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
