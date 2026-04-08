@@ -1,3 +1,9 @@
+---
+title: Smart Ambulance Dispatch RL
+sdk: docker
+app_port: 7860
+---
+
 # 🚑 Smart Ambulance Dispatch & Hospital Routing using Reinforcement Learning
 
 A production-ready Reinforcement Learning environment that simulates real-world Emergency Medical Services (EMS) dispatch and hospital routing optimization.
@@ -225,9 +231,15 @@ Used from **Stable-Baselines3**
 
 ## 🚀 Installation
 
-```bash git clone https://github.com/Sahaj915/smart-ambulance-dispatch-rl.git cd smart-ambulance-dispatch-rl pip install -r requirements.txt
+```bash 
+git clone https://github.com/Sahaj915/smart-ambulance-dispatch-rl.git cd smart-ambulance-dispatch-rl pip install -r requirements.txt
 
 ---
+
+## 🔐 Environment Variables 
+Create a `.env` file in the project root and add:
+ ```text 
+ GROQ_API_KEY=_api_key_here
 
 ## ▶ Run Application
 

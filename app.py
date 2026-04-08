@@ -7,25 +7,19 @@ env_instance = None
 import os
 import time
 import json
-import random
-import math
 import numpy as np
 import gradio as gr
-from groq import Groq
 from dotenv import load_dotenv
 load_dotenv()
 
-
-# importing project modules 
 try:
     from src.env import AmbulanceDispatchEnv, TASK_CONFIGS
     from src.grader import Grader, BENCHMARKS
 except ImportError:
-    # Fallbacks for demonstration if files are missing
     AmbulanceDispatchEnv = None
     Grader = None
 
-#  Policy Loaders
+# ── Policy Loaders ────────────────────────────────────────────────────────────
 
 def try_load_ppo(task: str):
     try:
@@ -61,7 +55,7 @@ def _make_greedy_policy():
         return nearest_amb.id * env.N_HOS + best_hosp.id
     return _policy, env_ref
 
-#  Advanced "Real-World" SVG Renderer
+# ── SVG Map Renderer ──────────────────────────────────────────────────────────
 
 def render_real_world_map(env, step):
     W, H = 700, 700
@@ -73,64 +67,51 @@ def render_real_world_map(env, step):
 
     lines = [
         f'<svg width="100%" height="100%" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">',
-        f'<defs><filter id="glow"><feGaussianBlur stdDeviation="2.5" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>',
+        f'<defs><filter id="glow"><feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>'
+        f'<feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>',
         f'<rect width="{W}" height="{H}" fill="#020617"/>',
     ]
-
     block_size = W // 10
     for i in range(12):
         for j in range(12):
             bx, by = i * block_size, j * block_size
             lines.append(f'<rect x="{bx+4}" y="{by+4}" width="{block_size-8}" height="{block_size-8}" fill="#0f172a" rx="2" opacity="0.5"/>')
-    
     for i in range(0, int(GRID) + 1, 5):
         lines.append(f'<line x1="{gx(i)}" y1="{gy(0)}" x2="{gx(i)}" y2="{gy(GRID)}" stroke="#1e293b" stroke-width="3"/>')
         lines.append(f'<line x1="{gx(0)}" y1="{gy(i)}" x2="{gx(GRID)}" y2="{gy(i)}" stroke="#1e293b" stroke-width="3"/>')
-
     for h in env.hospitals:
         cx, cy = gx(h.x), gy(h.y)
         color = {0: "#6366f1", 1: "#ef4444", 2: "#06b6d4"}[h.specialty]
-        lines.append(f'<rect x="{cx-18}" y="{cy-18}" width="36" height="36" fill="#000" opacity="0.3" rx="4"/>')
         lines.append(f'<rect x="{cx-15}" y="{cy-15}" width="30" height="30" fill="{color}" rx="6" filter="url(#glow)"/>')
         lines.append(f'<text x="{cx}" y="{cy+5}" text-anchor="middle" fill="white" font-size="16" font-weight="bold">H</text>')
-        fullness = (h.total_beds - h.available_beds) / h.total_beds
-        lines.append(f'<circle cx="{cx}" cy="{cy}" r="22" fill="none" stroke="{color}" stroke-width="2" stroke-dasharray="{138*fullness} 138" transform="rotate(-90 {cx} {cy})"/>')
-        lines.append(f'<text x="{cx}" y="{cy+38}" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">{h.name[:10]}</text>')
-
+        lines.append(f'<text x="{cx}" y="{cy+38}" text-anchor="middle" fill="#94a3b8" font-size="10">{h.name[:10]}</text>')
     for c in env.calls:
         if c.active and not c.assigned:
             cx, cy = gx(c.x), gy(c.y)
-            # Define color for Critical Level 3
             color = {1: "#f59e0b", 2: "#f97316", 3: "#ef4444"}[c.severity]
             pulse_r = 10 + (step % 10) * 2
-            lines.append(f'<circle cx="{cx}" cy="{cy}" r="{pulse_r}" fill="none" stroke="{color}" stroke-width="2" opacity="{1 - (step%10)/10}"/>')
+            lines.append(f'<circle cx="{cx}" cy="{cy}" r="{pulse_r}" fill="none" stroke="{color}" stroke-width="2" opacity="{1-(step%10)/10}"/>')
             lines.append(f'<circle cx="{cx}" cy="{cy}" r="8" fill="{color}" filter="url(#glow)"/>')
-            
-            # Label change: "CRITICAL" for level 3, otherwise "SEV X"
-            label_text = "CRITICAL" if c.severity == 3 else f"SEV {c.severity}"
-            lines.append(f'<text x="{cx}" y="{cy-15}" text-anchor="middle" fill="{color}" font-size="11" font-weight="bold">{label_text}</text>')
-
+            label = "CRITICAL" if c.severity == 3 else f"SEV {c.severity}"
+            lines.append(f'<text x="{cx}" y="{cy-15}" text-anchor="middle" fill="{color}" font-size="11" font-weight="bold">{label}</text>')
     for a in env.ambulances:
         cx, cy = gx(a.x), gy(a.y)
         status_color = {0: "#22c55e", 1: "#eab308", 2: "#3b82f6", 3: "#64748b"}[a.status]
         lines.append(f'<rect x="{cx-10}" y="{cy-6}" width="20" height="12" rx="3" fill="{status_color}" filter="url(#glow)"/>')
-        lines.append(f'<rect x="{cx+2}" y="{cy-4}" width="6" height="8" rx="1" fill="#fff" opacity="0.6"/>')
         lines.append(f'<text x="{cx}" y="{cy+4}" text-anchor="middle" fill="white" font-size="8" font-weight="bold">{a.id}</text>')
-
     lines.append("</svg>")
     return "\n".join(lines)
 
-#  Dashboard Utilities
+# ── Dashboard Utilities ───────────────────────────────────────────────────────
 
 def get_metric_card(title, value, trend="", variant="neutral"):
     color = {"neutral": "#334155", "success": "#065f46", "warning": "#854d0e", "danger": "#7f1d1d"}[variant]
     return f"""
-    <div style="background:{color}; padding:12px; border-radius:10px; border: 1px solid #475569; margin-bottom:8px">
+    <div style="background:{color}; padding:12px; border-radius:10px; border:1px solid #475569; margin-bottom:8px">
         <div style="color:#cbd5e1; font-size:0.7rem; font-weight:bold; text-transform:uppercase">{title}</div>
         <div style="color:white; font-size:1.5rem; font-weight:bold">{value}</div>
         <div style="color:#94a3b8; font-size:0.7rem">{trend}</div>
-    </div>
-    """
+    </div>"""
 
 def run_episode_stream(task, policy_name, seed):
     env = AmbulanceDispatchEnv(task=task)
@@ -158,50 +139,39 @@ def run_episode_stream(task, policy_name, seed):
         rate = f"{(surv/(surv+lost+1e-6))*100:.1f}%"
 
         metrics_html = f"""
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px">
             {get_metric_card("System Status", "ACTIVE", f"Step {step}/{env.MAX_STEPS}", "success")}
-            {get_metric_card("Net Reward", f"{total_reward:.1f}", "Reward Cumulative", "neutral")}
+            {get_metric_card("Net Reward", f"{total_reward:.1f}", "Cumulative", "neutral")}
             {get_metric_card("Survival Rate", rate, f"{surv} Lives Saved", "success" if surv > lost else "warning")}
-            {get_metric_card("Critical Alert", stats.get('critical_missed', 0), "Patients Lost", "danger")}
+            {get_metric_card("Critical Missed", stats.get('critical_missed', 0), "Patients Lost", "danger")}
             {get_metric_card("Fleet Load", f"{env.N_AMB - info['available_ambs']}/{env.N_AMB}", "Active Dispatches", "neutral")}
-            {get_metric_card("Avg Traffic", f"{info['traffic']:.2f}x", "Travel Delay", "warning" if info['traffic'] > 1.5 else "neutral")}
-        </div>
-        """
+            {get_metric_card("Traffic", f"{info['traffic']:.2f}x", "Travel Delay", "warning" if info['traffic'] > 1.5 else "neutral")}
+        </div>"""
         yield render_real_world_map(env, step), metrics_html
         time.sleep(0.05)
 
-
-#  Llama 3 GenAI Debrief Engine - FIX APPLIED HERE
+# ── AI Debrief (Groq) ─────────────────────────────────────────────────────────
 
 def generate_llama_debrief(stats_json):
     if not stats_json:
         return "⚠️ Please run a Performance Audit first!"
-
     api_key = os.getenv("GROQ_API_KEY")
-
     if not api_key:
-        return "⚠️ GROQ API key not found"
-
+        return "⚠️ GROQ_API_KEY not set in Space secrets."
     try:
+        from groq import Groq
         client = Groq(api_key=api_key)
-    except Exception as e:
-        return f"⚠️ Error connecting to Groq API: {str(e)}"
+        prompt = f"""Act as the Chief Medical Dispatcher for a city reviewing an autonomous AI dispatch system.
 
-    prompt = f"""
-    Act as the Chief Medical Dispatcher for a city. You are reviewing the performance of an autonomous AI dispatch system based on a recent audit.
-    
-    Here is the AI's performance audit data (in JSON format):
-    {json.dumps(stats_json, indent=2)}
-    
-    Write a brief, 3-paragraph executive debriefing. 
-    1. Acknowledge the overall performance, survival rates, and reward metric.
-    2. Analyze the efficiency and point out any bottlenecks or failures from the data.
-    3. Give the AI system a final performance rating (e.g., "Outstanding", "Needs Retraining").
-    Keep it professional, analytical, and highly engaging.
-    """
+Performance audit data:
+{json.dumps(stats_json, indent=2)}
 
-    try:
-        # UPDATED MODEL NAME TO llama-3.1-8b-instant
+Write a 3-paragraph executive debriefing:
+1. Overall performance, survival rates, and reward metric.
+2. Efficiency analysis and bottlenecks from the data.
+3. Final performance rating (e.g., "Outstanding", "Needs Retraining").
+
+Keep it professional and analytical."""
         completion = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
@@ -212,92 +182,71 @@ def generate_llama_debrief(stats_json):
     except Exception as e:
         return f"⚠️ Failed to generate debrief: {str(e)}"
 
+# ── Gradio UI ─────────────────────────────────────────────────────────────────
 
-#  UI layout
+css = """
+.gradio-container { background-color: #020617 !important; }
+.map-container { background:#0f172a; border:2px solid #1e293b; border-radius:15px; min-height:700px; }
+.control-panel { background:#1e293b !important; padding:20px !important; border-radius:15px !important; }
+"""
 
 def build_interface():
-    css = """
-    .gradio-container { background-color: #020617 !important; }
-    .map-container { background: #0f172a;
-    border: 2px solid #1e293b;
-    border-radius: 15px;
-    min-height: 700px;
-    height: auto;
-    overflow: visible; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-    .control-panel { background: #1e293b !important; padding: 20px !important; border-radius: 15px !important; }
-    .legend-box { background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 10px; margin-top: 15px; }
-    .legend-item { display: flex; align-items: center; margin-bottom: 6px; font-size: 0.85rem; color: #cbd5e1; }
-    .dot { width: 12px; height: 12px; border-radius: 3px; margin-right: 10px; }
-    """
-    
     with gr.Blocks(theme=gr.themes.Base(primary_hue="blue", neutral_hue="slate"), css=css) as demo:
-        gr.HTML("<h1 style='color:white; text-align:center; margin:20px 0;'>Ambulance Dispatch Dashboard</h1>")
-        
+        gr.HTML("<h1 style='color:white; text-align:center; margin:20px 0;'>🚑 Ambulance Dispatch Dashboard</h1>")
+
         with gr.Tabs():
             with gr.Tab("Dispatch Terminal"):
                 with gr.Row():
                     with gr.Column(scale=1, elem_classes=["control-panel"]):
-                        task_dd = gr.Dropdown(choices=["easy", "medium", "hard"], value="medium", label="District")
-                        policy_dd = gr.Dropdown(choices=["PPO (Trained)", "Greedy Heuristic", "Random Baseline"], value="PPO (Trained)", label="Policy")
-                        seed_sl = gr.Slider(0, 100, value=42, label="Scenario Seed")
-                        run_btn = gr.Button("Start Simulation", variant="primary")
-                        
+                        task_dd   = gr.Dropdown(choices=["easy","medium","hard"], value="medium", label="District")
+                        policy_dd = gr.Dropdown(choices=["PPO (Trained)","Greedy Heuristic","Random Baseline"], value="PPO (Trained)", label="Policy")
+                        seed_sl   = gr.Slider(0, 100, value=42, label="Scenario Seed")
+                        run_btn   = gr.Button("▶ Start Simulation", variant="primary")
                         gr.HTML("""
-                        <div class="legend-box">
-                            <h4 style="color:white; margin-top:0; margin-bottom:10px; font-size:0.9rem;">Map Legend</h4>
-                            <p style="color:#94a3b8; font-size:0.75rem; font-weight:bold; margin-bottom:5px;">AMBULANCE STATUS</p>
-                            <div class="legend-item"><div class="dot" style="background:#22c55e;"></div>Available / Stationary</div>
-                            <div class="legend-item"><div class="dot" style="background:#eab308;"></div>En-Route to Emergency</div>
-                            <div class="legend-item"><div class="dot" style="background:#3b82f6;"></div>Transporting to Hospital</div>
-                            <div class="legend-item"><div class="dot" style="background:#64748b;"></div>Busy / Out of Service</div>
-                            <hr style="border: 0.5px solid #334155; margin: 10px 0;">
-                            <p style="color:#94a3b8; font-size:0.75rem; font-weight:bold; margin-bottom:5px;">EMERGENCY SEVERITY</p>
-                            <div class="legend-item"><div class="dot" style="background:#f59e0b;"></div>Severity 1 (Low)</div>
-                            <div class="legend-item"><div class="dot" style="background:#f97316;"></div>Severity 2 (High)</div>
-                            <div class="legend-item"><div class="dot" style="background:#ef4444;"></div>Severity 3 (CRITICAL)</div>
-                        </div>
-                        """)
-
+                        <div style="background:#0f172a; border:1px solid #334155; padding:12px; border-radius:10px; margin-top:15px">
+                            <h4 style="color:white; margin:0 0 10px 0; font-size:0.9rem;">Map Legend</h4>
+                            <div style="color:#94a3b8; font-size:0.75rem; font-weight:bold; margin-bottom:5px;">AMBULANCE</div>
+                            <div style="color:#22c55e; font-size:0.8rem">■ Available</div>
+                            <div style="color:#eab308; font-size:0.8rem">■ En-Route to Scene</div>
+                            <div style="color:#3b82f6; font-size:0.8rem">■ Transporting Patient</div>
+                            <div style="color:#94a3b8; font-size:0.75rem; font-weight:bold; margin:8px 0 5px 0;">EMERGENCY</div>
+                            <div style="color:#f59e0b; font-size:0.8rem">● Severity 1 (Low)</div>
+                            <div style="color:#f97316; font-size:0.8rem">● Severity 2 (High)</div>
+                            <div style="color:#ef4444; font-size:0.8rem">● CRITICAL</div>
+                        </div>""")
                     with gr.Column(scale=2, elem_classes=["map-container"]):
-                        map_display = gr.HTML(label="Tactical Map")
-
+                        map_display = gr.HTML()
                     with gr.Column(scale=1):
                         gr.Markdown("### Live Metrics")
-                        stats_display = gr.HTML("Initialize dispatch to see data...")
+                        stats_display = gr.HTML("Press Start Simulation to begin.")
 
             with gr.Tab("Analytics & Grading"):
                 with gr.Row():
                     with gr.Column(scale=1):
-                        eval_task = gr.Dropdown(choices=["easy", "medium", "hard"], value="medium", label="Test District")
-                        eval_policy = gr.Dropdown(choices=["PPO (Trained)", "Greedy Heuristic"], value="PPO (Trained)", label="Policy")
-                        eval_eps = gr.Slider(5, 50, value=10, label="Simulation Episodes")
-                        eval_btn = gr.Button("RUN PERFORMANCE AUDIT", variant="primary")
-                    
+                        eval_task   = gr.Dropdown(choices=["easy","medium","hard"], value="medium", label="Test District")
+                        eval_policy = gr.Dropdown(choices=["PPO (Trained)","Greedy Heuristic"], value="PPO (Trained)", label="Policy")
+                        eval_eps    = gr.Slider(5, 50, value=10, label="Episodes")
+                        eval_btn    = gr.Button("🏅 Run Performance Audit", variant="primary")
                     with gr.Column(scale=1):
-                        eval_out = gr.JSON(label="Audit Report")
-                    
+                        eval_out = gr.JSON(label="Audit Report (Score 0.0–1.0)")
                     with gr.Column(scale=1):
                         gr.Markdown("### 🤖 AI Performance Report")
-                        debrief_btn = gr.Button("Generate Report", variant="secondary")
-                        debrief_output = gr.Markdown("> *Run a Performance Audit first, then click generate.*")
+                        debrief_btn    = gr.Button("Generate AI Report", variant="secondary")
+                        debrief_output = gr.Markdown("> *Run audit first, then click Generate.*")
 
         run_btn.click(fn=run_episode_stream, inputs=[task_dd, policy_dd, seed_sl], outputs=[map_display, stats_display])
-        
+
         def run_grader(task, policy_name, n_episodes):
             if not Grader: return {"error": "Grader module not found"}
-            
             if policy_name == "PPO (Trained)" and PPO_POLICIES.get(task):
                 policy_fn = PPO_POLICIES[task]
             elif policy_name == "Greedy Heuristic":
                 policy_fn, env_ref = _make_greedy_policy()
-                env_g = AmbulanceDispatchEnv(task=task)
-                env_ref[0] = env_g
+                env_ref[0] = AmbulanceDispatchEnv(task=task)
             else:
                 env_r = AmbulanceDispatchEnv(task=task)
                 policy_fn = lambda obs: env_r.action_space.sample()
-
-            grader = Grader(task=task)
-            return grader.evaluate(policy_fn, n_episodes=int(n_episodes), verbose=False)
+            return Grader(task=task).evaluate(policy_fn, n_episodes=int(n_episodes), verbose=False)
 
         eval_btn.click(fn=run_grader, inputs=[eval_task, eval_policy, eval_eps], outputs=eval_out)
         debrief_btn.click(fn=generate_llama_debrief, inputs=[eval_out], outputs=[debrief_output])
@@ -306,39 +255,46 @@ def build_interface():
 
 demo = build_interface()
 
+# ── OpenEnv REST endpoints (/reset and /step) ─────────────────────────────────
+
 @api.post("/reset")
 def reset_env(request: dict = Body(default={})):
     global env_instance
-
     task = request.get("task", "medium")
     seed = request.get("seed", 42)
-
     env_instance = AmbulanceDispatchEnv(task=task)
     obs, info = env_instance.reset(seed=seed)
-
+    print(json.dumps({"type": "START", "task": task, "seed": seed}), flush=True)
     return {
-        "obs": obs.tolist() if hasattr(obs, "tolist") else list(obs),
+        "obs":  obs.tolist(),
         "info": info,
-        "done": False
+        "done": False,
+        "action_space_n": env_instance.n_actions,
     }
 
 @api.post("/step")
 def step_env(request: dict = Body(default={})):
     global env_instance
-
     if env_instance is None:
         return {"error": "Call /reset first"}
-
     action = request.get("action", 0)
-
     obs, reward, terminated, truncated, info = env_instance.step(action)
-
+    done = terminated or truncated
+    print(json.dumps({"type": "STEP", "action": action, "reward": round(float(reward), 4), "done": done}), flush=True)
+    if done:
+        print(json.dumps({"type": "END", "stats": info.get("episode_stats", {})}), flush=True)
     return {
-        "obs": obs.tolist() if hasattr(obs, "tolist") else list(obs),
-        "reward": float(reward),
+        "obs":        obs.tolist(),
+        "reward":     float(reward),
         "terminated": bool(terminated),
-        "truncated": bool(truncated),
-        "info": info
+        "truncated":  bool(truncated),
+        "done":       bool(done),
+        "info":       info,
     }
 
+@api.get("/health")
+def health():
+    return {"status": "ok"}
+
+# Mount Gradio onto the FastAPI app
 app = gr.mount_gradio_app(api, demo, path="/")
