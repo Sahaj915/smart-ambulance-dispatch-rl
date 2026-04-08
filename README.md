@@ -2,11 +2,9 @@
 title: Smart Ambulance Dispatch RL
 emoji: 🚑
 colorFrom: red
-colorTo: blue
-sdk: gradio
-sdk_version: 4.44.1
-app_file: app.py
-pinned: false
+colorTo: purple
+sdk: docker
+app_port: 7860
 ---
 # 🚑 Smart Ambulance Dispatch & Hospital Routing using Reinforcement Learning
 
