@@ -1,9 +1,13 @@
 ---
 title: Smart Ambulance Dispatch RL
-sdk: docker
-app_port: 7860
+emoji: 🚑
+colorFrom: red
+colorTo: blue
+sdk: gradio
+sdk_version: 4.44.1
+app_file: app.py
+pinned: false
 ---
-
 # 🚑 Smart Ambulance Dispatch & Hospital Routing using Reinforcement Learning
 
 A production-ready Reinforcement Learning environment that simulates real-world Emergency Medical Services (EMS) dispatch and hospital routing optimization.

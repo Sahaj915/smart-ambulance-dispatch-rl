@@ -1,16 +1,17 @@
 from fastapi import FastAPI, Body
 from src.env import AmbulanceDispatchEnv
-
-api = FastAPI()
-env_instance = None
-
 import os
 import time
 import json
 import numpy as np
 import gradio as gr
+import uvicorn
 from dotenv import load_dotenv
+
 load_dotenv()
+
+api = FastAPI()
+env_instance = None
 
 try:
     from src.env import AmbulanceDispatchEnv, TASK_CONFIGS
@@ -162,15 +163,12 @@ def generate_llama_debrief(stats_json):
         from groq import Groq
         client = Groq(api_key=api_key)
         prompt = f"""Act as the Chief Medical Dispatcher for a city reviewing an autonomous AI dispatch system.
-
 Performance audit data:
 {json.dumps(stats_json, indent=2)}
-
 Write a 3-paragraph executive debriefing:
 1. Overall performance, survival rates, and reward metric.
 2. Efficiency analysis and bottlenecks from the data.
 3. Final performance rating (e.g., "Outstanding", "Needs Retraining").
-
 Keep it professional and analytical."""
         completion = client.chat.completions.create(
             model="llama-3.1-8b-instant",
@@ -264,7 +262,6 @@ def reset_env(request: dict = Body(default={})):
     seed = request.get("seed", 42)
     env_instance = AmbulanceDispatchEnv(task=task)
     obs, info = env_instance.reset(seed=seed)
-    print(json.dumps({"type": "START", "task": task, "seed": seed}), flush=True)
     return {
         "obs":  obs.tolist(),
         "info": info,
@@ -280,9 +277,6 @@ def step_env(request: dict = Body(default={})):
     action = request.get("action", 0)
     obs, reward, terminated, truncated, info = env_instance.step(action)
     done = terminated or truncated
-    print(json.dumps({"type": "STEP", "action": action, "reward": round(float(reward), 4), "done": done}), flush=True)
-    if done:
-        print(json.dumps({"type": "END", "stats": info.get("episode_stats", {})}), flush=True)
     return {
         "obs":        obs.tolist(),
         "reward":     float(reward),
@@ -296,5 +290,9 @@ def step_env(request: dict = Body(default={})):
 def health():
     return {"status": "ok"}
 
-# Mount Gradio onto the FastAPI app
+# Mount Gradio and launch
 app = gr.mount_gradio_app(api, demo, path="/")
+
+if __name__ == "__main__":
+    # Port 7860 is the default for Hugging Face Spaces
+    uvicorn.run(app, host="0.0.0.0", port=7860)
