@@ -1,21 +1,13 @@
 [project]
 name = "smart-ambulance-dispatch-rl"
 version = "0.1.0"
-description = "Ambulance dispatch RL system"
-authors = [{ name = "Sahaj" }]
+description = "Smart ambulance dispatch"
+requires-python = ">=3.11"
 dependencies = [
+    "openenv-core>=0.2.0",
     "fastapi",
     "uvicorn",
-    "gradio",
-    "numpy",
-    "python-dotenv",
-    "requests",
-    "openenv-core>=0.2.0"
 ]
 
 [project.scripts]
-server = "server.app:app"
-
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+server = "server.app:main"
