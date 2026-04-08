@@ -156,16 +156,16 @@ def generate_llama_debrief(stats_json):
     import os
     import json
     import random
-    from openai import OpenAI
+    import requests
 
     if not stats_json or "error" in stats_json:
         return "⚠️ Please run a Performance Audit first!"
 
     try:
-        client = OpenAI(
-            api_key=os.getenv("GROQ_API_KEY"),
-            base_url="https://api.groq.com/openai/v1"
-        )
+        api_key = os.getenv("GROQ_API_KEY")
+
+        if not api_key:
+            return "⚠️ GROQ_API_KEY missing in environment variables"
 
         audit_score = stats_json.get("score", 0)
         survival = stats_json.get("breakdown", {}).get("survival_rate", 0)
@@ -202,9 +202,14 @@ Critical Success: {critical}
 Return markdown format.
 """
 
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": "llama-3.1-8b-instant",
+            "messages": [
                 {
                     "role": "system",
                     "content": "Every report must be unique and dynamic."
@@ -214,12 +219,23 @@ Return markdown format.
                     "content": prompt
                 }
             ],
-            temperature=1.3,
-            top_p=0.95,
-            max_tokens=700
+            "temperature": 1.3,
+            "top_p": 0.95,
+            "max_tokens": 700
+        }
+
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=30
         )
 
-        return response.choices[0].message.content
+        response.raise_for_status()
+
+        result = response.json()
+
+        return result["choices"][0]["message"]["content"]
 
     except Exception as e:
         return f"⚠️ API Error: {str(e)}"
