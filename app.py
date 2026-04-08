@@ -194,11 +194,12 @@ Write a professional 3-paragraph performance report:
     except Exception as e:
         return f"⚠️ Failed to generate debrief: {str(e)}"
 ## 🚑 AI Performance Debrief
-from openai import OpenAI
-import os
-import json
-
 def generate_llama_debrief(stats_json):
+    import os
+    import json
+    import random
+    from openai import OpenAI
+
     if not stats_json or "error" in stats_json:
         return "⚠️ Please run a Performance Audit first!"
 
@@ -208,33 +209,60 @@ def generate_llama_debrief(stats_json):
             base_url="https://api.groq.com/openai/v1"
         )
 
-        prompt = f"""
-You are the Chief Medical Dispatcher reviewing an RL ambulance dispatch system.
+        # add randomness to force report variation
+        style_options = [
+            "professional executive summary",
+            "critical operational review",
+            "detailed emergency response analysis",
+            "medical command performance debrief"
+        ]
 
-Performance audit:
+        chosen_style = random.choice(style_options)
+
+        prompt = f"""
+You are a senior emergency response analyst.
+
+Generate a UNIQUE {chosen_style} based on this audit data.
+
+IMPORTANT:
+- Do NOT repeat previous wording
+- Use different phrasing every time
+- Mention strengths and weaknesses from actual numbers
+- Give operational suggestions
+- Make the tone dynamic
+
+Audit Data:
 {json.dumps(stats_json, indent=2)}
 
-Write a professional report with:
-1. Summary
-2. Strengths & weaknesses
-3. Final rating
+Return markdown report with:
+# Summary
+# Key Metrics
+# Weaknesses
+# Recommendation
+# Final Rating
 """
 
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": "You are an expert emergency operations analyst."},
-                {"role": "user", "content": prompt}
+                {
+                    "role": "system",
+                    "content": "Every response must be different in wording and analysis style."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
             ],
-            temperature=0.9,   # 🔥 important (makes output different each time)
-            max_tokens=500
+            temperature=1.2,   # VERY IMPORTANT
+            top_p=0.95,
+            max_tokens=600
         )
 
         return response.choices[0].message.content
 
     except Exception as e:
         return f"⚠️ API Error: {str(e)}"
-
 # ── Gradio UI ─────────────────────────────────────────────────────────────────
 
 css = """
