@@ -115,41 +115,17 @@ environment:
 # -------------------------------------------------------------------
 
 tasks:
-  easy:
-    description: >
-      Small city simulation with low call volume
-      and low traffic variability.
-    num_ambulances: 3
-    num_hospitals: 2
-    max_active_calls: 3
-    max_steps: 200
-    call_spawn_prob: 0.10
-    severity_weights: [0.6, 0.3, 0.1]
-    grader_target_score: 0.75
+  - name: easy_dispatch
+    description: Optimize ambulance routing for easy district
+    grader: exact_match
 
-  medium:
-    description: >
-      Medium city simulation with mixed severity
-      and moderate operational constraints.
-    num_ambulances: 5
-    num_hospitals: 3
-    max_active_calls: 6
-    max_steps: 300
-    call_spawn_prob: 0.20
-    severity_weights: [0.4, 0.4, 0.2]
-    grader_target_score: 0.65
+  - name: medium_dispatch
+    description: Optimize ambulance routing for medium district
+    grader: exact_match
 
-  hard:
-    description: >
-      Large city simulation with heavy emergency load,
-      higher critical cases, and ICU pressure.
-    num_ambulances: 8
-    num_hospitals: 4
-    max_active_calls: 10
-    max_steps: 500
-    call_spawn_prob: 0.30
-    severity_weights: [0.2, 0.4, 0.4]
-    grader_target_score: 0.55
+  - name: hard_dispatch
+    description: Optimize ambulance routing for hard district
+    grader: exact_match
 
 # -------------------------------------------------------------------
 # Grader Configuration
