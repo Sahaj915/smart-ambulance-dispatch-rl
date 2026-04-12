@@ -115,23 +115,24 @@ environment:
 # -------------------------------------------------------------------
 
 tasks:
-  - name: easy_dispatch
+tasks:
+  easy_dispatch:
     description: Optimize ambulance routing for easy district
-    grader:
-      enabled: true
-      type: exact_match
+    graders:
+      - type: exact_match
+        enabled: true
 
-  - name: medium_dispatch
+  medium_dispatch:
     description: Optimize ambulance routing for medium district
-    grader:
-      enabled: true
-      type: exact_match
+    graders:
+      - type: exact_match
+        enabled: true
 
-  - name: hard_dispatch
+  hard_dispatch:
     description: Optimize ambulance routing for hard district
-    grader:
-      enabled: true
-      type: exact_match
+    graders:
+      - type: exact_match
+        enabled: true
 
 # -------------------------------------------------------------------
 # Grader Configuration
