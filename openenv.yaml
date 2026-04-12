@@ -1,4 +1,4 @@
-```yaml
+
 name: SmartAmbulanceDispatchRL
 version: "1.0.0"
 
@@ -117,15 +117,21 @@ environment:
 tasks:
   - name: easy_dispatch
     description: Optimize ambulance routing for easy district
-    grader: exact_match
+    grader:
+      enabled: true
+      type: exact_match
 
   - name: medium_dispatch
     description: Optimize ambulance routing for medium district
-    grader: exact_match
+    grader:
+      enabled: true
+      type: exact_match
 
   - name: hard_dispatch
     description: Optimize ambulance routing for hard district
-    grader: exact_match
+    grader:
+      enabled: true
+      type: exact_match
 
 # -------------------------------------------------------------------
 # Grader Configuration
@@ -194,4 +200,4 @@ deployment:
   app_file: app.py
   framework: gradio
   port: 7860
-```
+
