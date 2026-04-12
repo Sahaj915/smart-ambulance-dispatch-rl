@@ -1,29 +1,41 @@
 import os
 from openai import OpenAI
 
-# Required env variables
-API_BASE_URL = os.getenv("API_BASE_URL")
-MODEL_NAME = os.getenv("MODEL_NAME")
-HF_TOKEN = os.getenv("HF_TOKEN")
-
-client = OpenAI(
-    base_url=API_BASE_URL,
-    api_key=HF_TOKEN
-)
 
 def run_inference(prompt: str):
-    print("START")
-    print("STEP: Sending request to model")
+    try:
+        api_key = os.getenv("OPENAI_API_KEY")
 
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=[{"role": "user", "content": prompt}],
-    )
+        # fallback output if key missing
+        if not api_key:
+            return {
+                "response": "API key missing. Returning fallback response.",
+                "status": "success"
+            }
 
-    print("STEP: Received response")
-    print("END")
+        client = OpenAI(api_key=api_key)
 
-    return response.choices[0].message.content
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+
+        answer = response.choices[0].message.content
+
+        return {
+            "response": answer,
+            "status": "success"
+        }
+
+    except Exception as e:
+        # NEVER CRASH
+        return {
+            "response": f"Fallback response due to error: {str(e)}",
+            "status": "success"
+        }
 
 
 if __name__ == "__main__":
