@@ -115,7 +115,6 @@ environment:
 # -------------------------------------------------------------------
 
 tasks:
-tasks:
   easy_dispatch:
     description: Optimize ambulance routing for easy district
     graders:
